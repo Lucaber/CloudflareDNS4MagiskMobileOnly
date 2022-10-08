@@ -8,7 +8,20 @@ MODDIR=${0%/*}
 
 # This script will be executed in late_start service mode
 
-iptables -t nat -A OUTPUT -p tcp --dport 53 -j DNAT --to-destination 1.1.1.1:53
-iptables -t nat -A OUTPUT -p udp --dport 53 -j DNAT --to-destination 1.0.0.1:53
-iptables -t nat -I OUTPUT -p tcp --dport 53 -j DNAT --to-destination 1.1.1.1:53
-iptables -t nat -I OUTPUT -p udp --dport 53 -j DNAT --to-destination 1.0.0.1:53
+# wait for start of moble interfaces to register
+while [ "$interfaces" = "" ]; do
+    sleep 1;
+    interfaces=$(ls -1 /sys/class/net | grep rmnet_data)
+done
+
+# give more time to register additional interfaces
+sleep 5;
+interfaces=$(ls -1 /sys/class/net | grep rmnet_data)
+
+for interface in ${interfaces}; do
+    iptables -t nat -A OUTPUT -p tcp --dport 53 -j DNAT --to-destination 1.1.1.1:53 -o ${interface}
+    iptables -t nat -A OUTPUT -p udp --dport 53 -j DNAT --to-destination 1.0.0.1:53 -o ${interface}
+    iptables -t nat -I OUTPUT -p tcp --dport 53 -j DNAT --to-destination 1.1.1.1:53 -o ${interface}
+    iptables -t nat -I OUTPUT -p udp --dport 53 -j DNAT --to-destination 1.0.0.1:53 -o ${interface}
+done
+
